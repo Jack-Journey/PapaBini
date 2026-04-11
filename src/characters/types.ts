@@ -1,6 +1,39 @@
 import type { HTMLMotionProps } from 'motion/react'
-import type { ComponentType, SVGProps } from 'react'
+import type { ComponentType } from 'react'
 import type { ANIMATION_PRESETS } from './animations/presets'
+
+// ---------------------------------------------------------------------------
+// Parts — canonical schema for character JSON data files
+// ---------------------------------------------------------------------------
+
+/** A single visual part of a character state */
+export interface Part {
+  /** Part name — used for animation targeting and devtools identification */
+  n: string
+  /** Coordinate kind: 'i' = inset percentages [top,right,bottom,left] | 'p' = pixel [x,y,width,height] */
+  k: 'i' | 'p'
+  /**
+   * Coordinates — 4-element tuple. Semantics depend on k:
+   *   k='i': CSS inset percentages [top, right, bottom, left]
+   *   k='p': pixel values [x, y, width, height] within the NATIVE_SIZE (200px) canvas.
+   *          Constraint: x + width <= 200, y + height <= 200
+   *          Source Figma frames are scaled to 200px before authoring
+   *          (e.g. 344px Figma → 200px native via factor 200/344 ≈ 0.5814)
+   */
+  c: [number, number, number, number]
+  /**
+   * SVG string — must begin with <svg.
+   * Never user-supplied content — sourced exclusively from build-time JSON authored by developers.
+   */
+  s: string
+}
+
+/** Complete data for one character state, loaded from a JSON file */
+export interface CharacterStateData {
+  char: string
+  state: string
+  parts: Part[]
+}
 
 // ---------------------------------------------------------------------------
 // State
@@ -62,8 +95,9 @@ export type AnimationRef = AnimationPresetName | AnimationPreset
 // Asset
 // ---------------------------------------------------------------------------
 
-export type CharacterAssetProps = SVGProps<SVGSVGElement> & {
+export interface CharacterAssetProps {
   size?: number
+  className?: string
 }
 
 // ---------------------------------------------------------------------------

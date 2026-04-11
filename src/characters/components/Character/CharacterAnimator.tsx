@@ -28,6 +28,10 @@ export function CharacterAnimator({
   const enter = resolvePreset(animation)
   const idle = idleAnimation ? resolvePreset(idleAnimation) : undefined
 
+  // Note: AnimationPreset.parts (per-named-part motion overrides, keyed by SVG group id) is
+  // defined in types.ts but not yet wired here. Implement when per-character-part animation
+  // targeting is required — the data structure is forward-declared and ready.
+
   // Outer wrapper: handles state entry/exit animation (keyed so AnimatePresence
   // can unmount/mount on state change)
   // Inner wrapper: handles the idle loop, layered independently of entry animation

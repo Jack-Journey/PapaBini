@@ -43,6 +43,9 @@ export const ANIMATION_PRESETS = {
   },
 
   // --- Idle loops ---------------------------------------------------------
+  // TODO: Replace hardcoded duration values with design system animation tokens when token system
+  // ships (card 5.3). prefers-reduced-motion: idle loop animations below do not currently
+  // respect prefers-reduced-motion — known gap, tracked for post-token-system pass.
 
   'idle-breathe': {
     idle: {
@@ -67,4 +70,4 @@ export const ANIMATION_PRESETS = {
 
 } as const satisfies Record<string, AnimationPreset>
 
-export type AnimationPresetName = keyof typeof ANIMATION_PRESETS
+// AnimationPresetName is defined canonically in types.ts — do not redefine here.

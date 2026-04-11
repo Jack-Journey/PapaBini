@@ -1,5 +1,10 @@
 import type { CharacterConfig } from './types'
 import { floConfig } from './characters/flo'
+import { kangarConfig } from './characters/kangar'
+import { hornConfig } from './characters/horn'
+import { herzStreifenConfig } from './characters/herzstreifen'
+import { flexConfig } from './characters/flex'
+import { potatoKingConfig } from './characters/potatoking'
 
 // ---------------------------------------------------------------------------
 // Master character registry
@@ -11,10 +16,11 @@ import { floConfig } from './characters/flo'
 
 export const CHARACTERS: CharacterConfig[] = [
   floConfig,
-  // kangarConfig,      ← add when Kangar assets are ready
-  // hornConfig,
-  // herzStreifenConfig,
-  // flexConfig,
+  kangarConfig,
+  hornConfig,
+  herzStreifenConfig,
+  flexConfig,
+  potatoKingConfig,
 ]
 
 export function getCharacter(id: string): CharacterConfig | undefined {

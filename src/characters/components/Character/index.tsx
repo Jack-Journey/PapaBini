@@ -38,7 +38,8 @@ export function Character({ id, state, size = 'md' }: CharacterProps) {
       animation={stateConfig.animation}
       idleAnimation={stateConfig.idleAnimation}
     >
-      <CharacterRenderer config={config} state={state} size={sizePx} />
+      {/* stateConfig resolved once above — passed directly so CharacterRenderer does not re-resolve */}
+      <CharacterRenderer stateConfig={stateConfig} size={sizePx} />
     </CharacterAnimator>
   )
 }

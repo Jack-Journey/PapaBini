@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Character } from '../characters'
+import { Character, CHARACTERS } from '../characters'
 import type { CharacterState } from '../characters'
 
 const STATES: CharacterState[] = ['correct', 'wrong', 'smile']
@@ -36,35 +36,43 @@ export default function CharacterPreview() {
         ))}
       </div>
 
-      {/* All sizes — animated */}
+      {/* All {CHARACTERS.length} characters in current state */}
       <section className="mb-12">
         <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-6">
-          Flo — {activeState} — all sizes
+          All characters — {activeState} — md
         </h2>
         <div className="flex items-end gap-10 flex-wrap">
-          {(['sm', 'md', 'lg'] as const).map(size => (
-            <div key={size} className="flex flex-col items-center gap-3">
-              <Character id="flo" state={activeState} size={size} />
-              <span className="text-xs text-gray-400 font-mono">{size}</span>
+          {CHARACTERS.map(c => (
+            <div key={c.id} className="flex flex-col items-center gap-3">
+              <Character id={c.id} state={activeState} size="md" />
+              <span className="text-xs text-gray-500 font-mono">{c.name.en}</span>
             </div>
           ))}
         </div>
       </section>
 
-      {/* All states side-by-side at md */}
-      <section>
-        <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-6">
-          Flo — all states — md
-        </h2>
-        <div className="flex items-end gap-10 flex-wrap">
-          {STATES.map(s => (
-            <div key={s} className="flex flex-col items-center gap-3">
-              <Character id="flo" state={s} size="md" />
-              <span className="text-xs text-gray-400 font-mono">{s}</span>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* Per-character: all states × sm/md/lg */}
+      {CHARACTERS.map(c => (
+        <section key={c.id} className="mb-12">
+          <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-6">
+            {c.name.en} — all states × all sizes
+          </h2>
+          <div className="flex flex-col gap-8">
+            {(['sm', 'md', 'lg'] as const).map(size => (
+              <div key={size} className="flex items-end gap-10 flex-wrap">
+                {STATES.map(s => (
+                  <div key={s} className="flex flex-col items-center gap-3">
+                    <Character id={c.id} state={s} size={size} />
+                    <span className="text-xs text-gray-400 font-mono">
+                      {size} · {s}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   )
 }

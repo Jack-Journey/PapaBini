@@ -1,17 +1,13 @@
-import type { CharacterConfig, CharacterState } from '../../types'
+import type { CharacterStateConfig } from '../../types'
 
 interface CharacterRendererProps {
-  config: CharacterConfig
-  state: CharacterState
+  // Resolved stateConfig passed from Character/index.tsx — resolution happens once upstream,
+  // not repeated here, to avoid duplicating the fallback logic in two places.
+  stateConfig: CharacterStateConfig
   size: number
 }
 
-export function CharacterRenderer({ config, state, size }: CharacterRendererProps) {
-  const stateConfig = config.states[state] ?? config.states[config.defaultState]
-
-  if (!stateConfig) return null
-
+export function CharacterRenderer({ stateConfig, size }: CharacterRendererProps) {
   const { Component } = stateConfig
-
   return <Component size={size} />
 }
