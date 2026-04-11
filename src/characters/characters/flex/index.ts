@@ -12,7 +12,7 @@ const FlexSmile = createCharacterStateComponent(smileData as unknown as Characte
 export const flexConfig: CharacterConfig = {
   id: 'flex',
   name: { en: 'Flex', de: 'Flex', zh: '弗萊克斯' },
-  accentColor: '#3b82f6',
+  accentColor: '#FFD059',
   defaultState: 'smile',
   states: {
     correct: { Component: FlexCorrect, animation: 'celebrate', idleAnimation: 'idle-float' },

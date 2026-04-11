@@ -12,7 +12,7 @@ const HerzSmile = createCharacterStateComponent(smileData as unknown as Characte
 export const herzStreifenConfig: CharacterConfig = {
   id: 'herzstreifen',
   name: { en: 'HerzStreifen', de: 'HerzStreifen', zh: '心紋' },
-  accentColor: '#ef4444',
+  accentColor: '#0075A7',
   defaultState: 'smile',
   states: {
     correct: { Component: HerzCorrect, animation: 'celebrate', idleAnimation: 'idle-float' },
