@@ -90,6 +90,10 @@ export function PartsRenderer({ data, size = NATIVE_SIZE, className }: PartsRend
               key={`${p.n}-${i}`}
               style={style}
               data-part={p.n}
+              // aria-hidden: these SVG parts are decorative. The accessible label is
+              // provided by the role="img" + aria-label on the Character wrapper in
+              // Character/index.tsx. Hiding individual parts keeps the AT tree clean.
+              aria-hidden="true"
               // Safe: SVG strings sourced from build-time JSON authored by developers, never user input.
               // Runtime guard above warns in DEV if content is not a valid SVG string.
               dangerouslySetInnerHTML={{ __html: p.s }}

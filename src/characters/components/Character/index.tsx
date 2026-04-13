@@ -38,14 +38,20 @@ export function Character({ id, state, size = 'md' }: CharacterProps) {
   const sizePx = resolvePx(size)
 
   return (
-    <CharacterAnimator
-      resolvedStateKey={resolvedStateKey}
-      sizePx={sizePx}
-      animation={stateConfig.animation}
-      idleAnimation={stateConfig.idleAnimation}
-    >
-      {/* stateConfig resolved once above — passed directly so CharacterRenderer does not re-resolve */}
-      <CharacterRenderer stateConfig={stateConfig} size={sizePx} />
-    </CharacterAnimator>
+    // Accessible wrapper: role="img" + aria-label expose the character identity
+    // and current state to assistive technology. The inner SVG parts are marked
+    // aria-hidden in PartsRenderer so the AT tree is not polluted with decorative
+    // SVG content.
+    <div role="img" aria-label={`${config.name.en} — ${resolvedStateKey}`}>
+      <CharacterAnimator
+        resolvedStateKey={resolvedStateKey}
+        sizePx={sizePx}
+        animation={stateConfig.animation}
+        idleAnimation={stateConfig.idleAnimation}
+      >
+        {/* stateConfig resolved once above — passed directly so CharacterRenderer does not re-resolve */}
+        <CharacterRenderer stateConfig={stateConfig} size={sizePx} />
+      </CharacterAnimator>
+    </div>
   )
 }

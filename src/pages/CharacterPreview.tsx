@@ -24,6 +24,7 @@ export default function CharacterPreview() {
           <button
             key={s}
             onClick={() => setActiveState(s)}
+            aria-pressed={activeState === s}
             className={[
               'px-5 py-3 rounded-2xl text-sm font-semibold transition-all min-h-[56px]',
               activeState === s
