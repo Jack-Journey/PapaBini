@@ -25,7 +25,13 @@ export function Character({ id, state, size = 'md' }: CharacterProps) {
     return null
   }
 
-  const stateConfig = config.states[state] ?? config.states[config.defaultState]
+  // Resolve to the actual state key that will be rendered. If the requested
+  // state is not defined, fall back to defaultState. The resolved key (not the
+  // raw prop) is passed to CharacterAnimator so AnimatePresence keys on what
+  // is actually rendering — two unknown states that both fall back to the same
+  // default will share a key and not trigger spurious re-animation.
+  const resolvedStateKey = config.states[state] !== undefined ? state : config.defaultState
+  const stateConfig = config.states[resolvedStateKey]
 
   if (!stateConfig) return null
 
@@ -33,7 +39,7 @@ export function Character({ id, state, size = 'md' }: CharacterProps) {
 
   return (
     <CharacterAnimator
-      state={state}
+      resolvedStateKey={resolvedStateKey}
       sizePx={sizePx}
       animation={stateConfig.animation}
       idleAnimation={stateConfig.idleAnimation}

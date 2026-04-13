@@ -67,6 +67,12 @@ export function PartsRenderer({ data, size = NATIVE_SIZE, className }: PartsRend
             }
           } else {
             const [x, y, w, h] = p.c
+            // IMPORTANT — negative x values are intentional.
+            // Wrong-state gesture parts (e.g. handScratch) extend left of the character body.
+            // Correct rendering depends on the outer container (the parent <div> of this inner
+            // NATIVE_SIZE div) having overflow: hidden. If overflow: hidden is removed from
+            // the outer container, wrong-state gestures will escape their bounds and visually
+            // overlap adjacent UI. Do not remove overflow: hidden without accounting for this.
             style = {
               position: 'absolute',
               left: x,

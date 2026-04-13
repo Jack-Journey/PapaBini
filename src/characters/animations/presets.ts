@@ -18,6 +18,11 @@ export const ANIMATION_PRESETS = {
       animate: { scale: 1, opacity: 1 },
       transition: { type: 'spring', stiffness: 400, damping: 20 },
     },
+    // exit.transition is embedded inside the exit target object so it applies
+    // only to the exit phase and does not override the enter transition above.
+    exit: {
+      exit: { scale: 0.95, opacity: 0, transition: { duration: 0.15 } },
+    },
   },
 
   'bounce-in': {
@@ -26,6 +31,9 @@ export const ANIMATION_PRESETS = {
       animate: { y: 0, opacity: 1 },
       transition: { type: 'spring', stiffness: 500, damping: 18 },
     },
+    exit: {
+      exit: { opacity: 0, scale: 0.95, transition: { duration: 0.15 } },
+    },
   },
 
   'celebrate': {
@@ -33,12 +41,18 @@ export const ANIMATION_PRESETS = {
       animate: { scale: [1, 1.15, 1], rotate: [0, -4, 4, -2, 0] },
       transition: { duration: 0.5, ease: 'easeOut' },
     },
+    exit: {
+      exit: { opacity: 0, scale: 0.95, transition: { duration: 0.15 } },
+    },
   },
 
   'slump': {
     enter: {
       animate: { y: [0, 8, 4], rotate: [0, -3, -1] },
       transition: { duration: 0.4, ease: 'easeOut' },
+    },
+    exit: {
+      exit: { opacity: 0, scale: 0.95, transition: { duration: 0.15 } },
     },
   },
 

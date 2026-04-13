@@ -1,10 +1,17 @@
 import { AnimatePresence, motion } from 'motion/react'
 import type { ReactNode } from 'react'
-import type { AnimationPreset, AnimationRef, CharacterState } from '../../types'
+import type { AnimationPreset, AnimationRef } from '../../types'
 import { ANIMATION_PRESETS } from '../../animations/presets'
 
 interface CharacterAnimatorProps {
-  state: CharacterState
+  /**
+   * The resolved state key — the actual key used to look up stateConfig, after
+   * falling back to defaultState for unknown values. Used as the AnimatePresence
+   * key so that two different unknown states that both resolve to the same default
+   * do not trigger unnecessary re-animation. Must match what Character/index.tsx
+   * resolved via: config.states[state] ?? config.states[config.defaultState].
+   */
+  resolvedStateKey: string
   sizePx: number
   animation: AnimationRef
   idleAnimation?: AnimationRef
@@ -19,13 +26,19 @@ function resolvePreset(ref: AnimationRef): AnimationPreset {
 }
 
 export function CharacterAnimator({
-  state,
+  resolvedStateKey,
   sizePx,
   animation,
   idleAnimation,
   children,
 }: CharacterAnimatorProps) {
-  const enter = resolvePreset(animation)
+  const preset = resolvePreset(animation)
+  const enter = preset.enter
+  // exit is spread onto the motion.div so AnimatePresence mode="wait" has an
+  // actual exit animation to play. Without an exit value, mode="wait" has no
+  // effect — the leaving element disappears instantly and the entering element
+  // starts before it is gone.
+  const exit = preset.exit
   const idle = idleAnimation ? resolvePreset(idleAnimation) : undefined
 
   // Note: AnimationPreset.parts (per-named-part motion overrides, keyed by SVG group id) is
@@ -38,9 +51,10 @@ export function CharacterAnimator({
   return (
     <AnimatePresence mode="wait">
       <motion.div
-        key={state}
+        key={resolvedStateKey}
         style={{ width: sizePx, height: sizePx, flexShrink: 0 }}
-        {...enter.enter}
+        {...enter}
+        {...exit}
       >
         {idle?.idle ? (
           <motion.div style={{ width: sizePx, height: sizePx }} {...idle.idle}>
