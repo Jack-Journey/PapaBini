@@ -73,15 +73,12 @@ figma.connect(
   }
 )
 
-// ─── Potato King (stub — node ID TBD) ────────────────────────────────────────
-// Add Potato King to the Figma file and replace the placeholder node ID below.
-// Do not publish until correct/wrong art is finalised (tracked: Trello #aFPvQBrx).
-//
-// figma.connect(
-//   Character,
-//   'https://www.figma.com/design/moOplvUMcgE538AV53d7Db?node-id=TODO',
-//   {
-//     props: { state: STATE_PROP },
-//     example: ({ state }) => <Character id="potatoking" state={state} />,
-//   }
-// )
+// ─── Potato King (node 25:65) ─────────────────────────────────────────────────
+figma.connect(
+  Character,
+  'https://www.figma.com/design/moOplvUMcgE538AV53d7Db?node-id=25:65',
+  {
+    props: { state: STATE_PROP },
+    example: ({ state }) => <Character id="potatoking" state={state} />,
+  }
+)
