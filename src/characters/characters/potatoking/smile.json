@@ -1,0 +1,48 @@
+{
+  "char": "PotatoKing",
+  "state": "smile",
+  "parts": [
+    {
+      "n": "body",
+      "k": "i",
+      "c": [7.5, 7.5, 7.5, 7.5],
+      "s": "<svg viewBox=\"0 0 100 100\" preserveAspectRatio=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><defs><radialGradient id=\"potatoking_smile_p0_pk_body\" cx=\"35%\" cy=\"30%\" r=\"80%\"><stop offset=\"0%\" stop-color=\"#FFD6A8\"/><stop offset=\"55%\" stop-color=\"#FB923C\"/><stop offset=\"100%\" stop-color=\"#C2410C\"/></radialGradient></defs><circle cx=\"50\" cy=\"50\" r=\"49\" fill=\"url(#potatoking_smile_p0_pk_body)\" stroke=\"#7C2D12\" stroke-width=\"1.5\"/></svg>"
+    },
+    {
+      "n": "tearL",
+      "k": "p",
+      "c": [47.7, 95.9, 11, 89],
+      "s": "<svg viewBox=\"0 0 11 89\" preserveAspectRatio=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"0\" y=\"0\" width=\"11\" height=\"89\" rx=\"5.5\" fill=\"#8AF5FC\"/></svg>"
+    },
+    {
+      "n": "tearR",
+      "k": "p",
+      "c": [141.9, 95.9, 11, 89],
+      "s": "<svg viewBox=\"0 0 11 89\" preserveAspectRatio=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"0\" y=\"0\" width=\"11\" height=\"89\" rx=\"5.5\" fill=\"#8AF5FC\"/></svg>"
+    },
+    {
+      "n": "eyeL",
+      "k": "p",
+      "c": [37.8, 68, 31, 31],
+      "s": "<svg viewBox=\"0 0 31 31\" preserveAspectRatio=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M15.5 29C22.9558 29 29 22.9558 29 15.5C29 8.04416 22.9558 2 15.5 2C8.04416 2 2 8.04416 2 15.5C2 22.9558 8.04416 29 15.5 29Z\" fill=\"white\" stroke=\"#1E1B18\" stroke-width=\"2\"/><path d=\"M14 22C16.7614 22 19 19.7614 19 17C19 14.2386 16.7614 12 14 12C11.2386 12 9 14.2386 9 17C9 19.7614 11.2386 22 14 22Z\" fill=\"#1E1B18\"/></svg>"
+    },
+    {
+      "n": "eyeR",
+      "k": "p",
+      "c": [131.9, 68, 31, 31],
+      "s": "<svg viewBox=\"0 0 31 31\" preserveAspectRatio=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M15.5 29C22.9558 29 29 22.9558 29 15.5C29 8.04416 22.9558 2 15.5 2C8.04416 2 2 8.04416 2 15.5C2 22.9558 8.04416 29 15.5 29Z\" fill=\"white\" stroke=\"#1E1B18\" stroke-width=\"2\"/><path d=\"M17 22C19.7614 22 22 19.7614 22 17C22 14.2386 19.7614 12 17 12C14.2386 12 12 14.2386 12 17C12 19.7614 14.2386 22 17 22Z\" fill=\"#1E1B18\"/></svg>"
+    },
+    {
+      "n": "mouth",
+      "k": "p",
+      "c": [84, 108, 32, 20],
+      "s": "<svg viewBox=\"0 0 32 20\" preserveAspectRatio=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M2 18L16 3L30 18\" stroke=\"#1E1B18\" stroke-width=\"3.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\" fill=\"none\"/></svg>"
+    },
+    {
+      "n": "crown",
+      "k": "p",
+      "c": [64, 162, 72, 24],
+      "s": "<svg viewBox=\"0 0 72 24\" preserveAspectRatio=\"none\" xmlns=\"http://www.w3.org/2000/svg\"><path d=\"M0 2L9 20L18 3L27 20L36 3L45 20L54 3L63 20L72 2L72 24L0 24Z\" fill=\"#2A1F14\"/></svg>"
+    }
+  ]
+}
