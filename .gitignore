@@ -13,6 +13,10 @@ research/
 resources/
 to-be-filed/
 
+# Claude Code local config (machine-local, may hold MCP server config or tokens)
+.mcp.json
+.claude.json
+
 # Environment
 .env
 .env.local
