@@ -22,6 +22,17 @@ to-be-filed/
 .env
 .env.local
 .env.*.local
+# Named-environment files (.env.production, .env.staging, ...) may hold secrets
+.env.*
+# Committable template — must stay AFTER the .env.* rule to re-include it
+!.env.example
+
+# Keys and certificates
+*.pem
+*.key
+
+# Netlify CLI local state (site linkage, may hold tokens)
+.netlify/
 
 # OS
 .DS_Store
