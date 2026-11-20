@@ -1,1 +1,27 @@
-@import "tailwindcss" source(".");
+/*
+ * Tailwind entry stylesheet: which files Tailwind scans for class names.
+ *
+ * No `source(...)` on the import, on purpose. With no `source()`,
+ * @tailwindcss/vite scans the whole Vite project root (`**` + `/*` from the
+ * repo root). That root does not depend on where this file lives. A
+ * `source(".")` here would resolve against THIS file's directory and replace
+ * the root scan. That shape (PR #4) dropped classes used only in the root
+ * `index.html` and emptied the scan when this file moved. Both fail at
+ * build rc 0 (Papabini #34).
+ *
+ * COUPLED TO .gitignore. Auto-detection skips every path .gitignore ignores.
+ * Under a root-wide scan, these .gitignore rules are the ONLY thing keeping
+ * private, untracked content out of the generated CSS. They are load-bearing:
+ *   CLAUDE.md  .claude/  design/  team/  research/  resources/  to-be-filed/
+ *   (plus .mcp.json / .claude.json / .env* / *.pem / *.key / .netlify/)
+ * Removing or narrowing one of them lets its contents feed the class scan.
+ * A private file's class names can then ship in the public CSS bundle.
+ *
+ * Markdown is excluded below. It is a scanned file type, so the tracked
+ * README.md would otherwise add CSS. The path is relative to THIS file.
+ * If this file moves, update `../` so the pattern still points at the repo
+ * root. Otherwise markdown outside src/ is scanned again (extra CSS, never
+ * missing CSS).
+ */
+@import "tailwindcss";
+@source not "../**/*.md";
