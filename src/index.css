@@ -2,26 +2,46 @@
  * Tailwind entry stylesheet: which files Tailwind scans for class names.
  *
  * No `source(...)` on the import, on purpose. With no `source()`,
- * @tailwindcss/vite scans the whole Vite project root (`**` + `/*` from the
- * repo root). That root does not depend on where this file lives. A
- * `source(".")` here would resolve against THIS file's directory and replace
- * the root scan. That shape (PR #4) dropped classes used only in the root
- * `index.html` and emptied the scan when this file moved. Both fail at
- * build rc 0 (Papabini #34).
+ * @tailwindcss/vite scans the whole Vite project root (the repo root),
+ * wherever this file lives. A `source(".")` here would resolve against
+ * THIS file's directory and replace the root scan. That shape (PR #4)
+ * dropped classes used only in the root `index.html` and emptied the scan
+ * when this file moved. Both fail at build rc 0 (Papabini #34).
  *
- * COUPLED TO .gitignore. Auto-detection skips every path .gitignore ignores.
- * Under a root-wide scan, these .gitignore rules are the ONLY thing keeping
- * private, untracked content out of the generated CSS. They are load-bearing:
- *   CLAUDE.md  .claude/  design/  team/  research/  resources/  to-be-filed/
- *   (plus .mcp.json / .claude.json / .env* / *.pem / *.key / .netlify/)
- * Removing or narrowing one of them lets its contents feed the class scan.
- * A private file's class names can then ship in the public CSS bundle.
+ * WHAT FEEDS THE CSS. Every file under the repo root that is not ignored
+ * is a CSS input, and its class names can ship in the public CSS bundle.
+ * That includes untracked files under any name, and the targets of
+ * symlinks: the scanner follows symlinks, including ones that point outside
+ * the repo.
  *
- * Markdown is excluded below. It is a scanned file type, so the tracked
- * README.md would otherwise add CSS. The path is relative to THIS file.
- * If this file moves, update `../` so the pattern still points at the repo
- * root. Otherwise markdown outside src/ is scanned again (extra CSS, never
- * missing CSS).
+ * WHAT COUNTS AS IGNORED. The scanner honours the repo's .gitignore, and
+ * .git/info/exclude when the checkout is a git repo. It does NOT honour
+ * global git excludes (core.excludesFile, ~/.config/git/ignore). So
+ * `git status` or `git check-ignore` can call a file ignored while
+ * Tailwind still scans it.
+ *
+ * CURRENT MITIGATION for private paths and build output. Not a boundary: a
+ * private file under any other name, or a symlink at an unignored path,
+ * is not covered.
+ *   1. These .gitignore rules are load-bearing for the scan, not only for
+ *      git: CLAUDE.md  .claude/  design/  team/  research/  resources/
+ *      to-be-filed/  dist/  .vite/
+ *      Without the dist/ rule, a stale build output feeds the next build.
+ *   2. The `@source not` lines below exclude the private paths a second
+ *      time, so they stay out even if a .gitignore rule is removed.
+ *
+ * Markdown (.md, .MD, .mdx, .markdown) is excluded too. Otherwise the
+ * tracked README.md adds CSS.
+ *
+ * Every `@source not` path is relative to THIS file. If this file moves,
+ * update the `../` prefixes, or those exclusions stop applying.
  */
 @import "tailwindcss";
-@source not "../**/*.md";
+@source not "../**/*.{md,MD,mdx,markdown}";
+@source not "../CLAUDE.md";
+@source not "../.claude";
+@source not "../design";
+@source not "../team";
+@source not "../research";
+@source not "../resources";
+@source not "../to-be-filed";
