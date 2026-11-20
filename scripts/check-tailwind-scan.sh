@@ -25,7 +25,8 @@
 #            rooted at src/ (the old `source(".")` shape) drops it.
 #   ABSENT   markdown (.md .MD .mdx .markdown, at the root and in src/),
 #            each private root name (CLAUDE.md .claude design team research
-#            resources to-be-filed), and scripts/ (this tooling).
+#            resources to-be-filed), and scripts/ (this tooling) when the
+#            tree has it.
 #            Checked twice: with .gitignore as committed, and with the
 #            private .gitignore rules REMOVED, which proves the
 #            `@source not` lines on their own.
@@ -269,13 +270,15 @@ ABSENT_ROWS="3511|scan-sentinel.md|markdown .md (root)
 3524|team/scan-sentinel.html|private team/
 3525|research/scan-sentinel.html|private research/
 3526|resources/scan-sentinel.html|private resources/
-3527|to-be-filed/scan-sentinel.html|private to-be-filed/
-3531|scripts/scan-sentinel.html|tooling scripts/"
+3527|to-be-filed/scan-sentinel.html|private to-be-filed/"
+
+# scripts/ is checked only when the tree has it (commits before #35 do not).
+SCRIPTS_N=3531
 
 PUBLIC_N=3504
 GAP_DIR_N=3541
 GAP_FILE_N=3542
-ALL_NUMS="3501 3502 3503 $PUBLIC_N 3511 3512 3513 3514 3515 3516 3517 3518 3521 3522 3523 3524 3525 3526 3527 3531 $GAP_DIR_N $GAP_FILE_N"
+ALL_NUMS="3501 3502 3503 $PUBLIC_N 3511 3512 3513 3514 3515 3516 3517 3518 3521 3522 3523 3524 3525 3526 3527 $SCRIPTS_N $GAP_DIR_N $GAP_FILE_N"
 
 # plant_all DEST: plant every PRESENT and ABSENT sentinel in DEST.
 plant_all() {
@@ -298,6 +301,9 @@ $PRESENT_ROWS
 EOF
   if [ -d "$dest/public" ]; then
     plant "$dest/public/scan-sentinel.html" "$PUBLIC_N"
+  fi
+  if [ "$HAS_SCRIPTS" -eq 1 ]; then
+    plant "$dest/scripts/scan-sentinel.html" "$SCRIPTS_N"
   fi
   while IFS='|' read -r n p label; do
     [ -n "$n" ] || continue
@@ -338,6 +344,10 @@ EOF
     if in_css "$css" "$PUBLIC_N"; then pass "[$run] PRESENT public/"
     else fail "[$run] PRESENT public/: sentinel missing from the CSS"; fi
   fi
+  if [ "$HAS_SCRIPTS" -eq 1 ]; then
+    if in_css "$css" "$SCRIPTS_N"; then fail "[$run] ABSENT tooling scripts/: sentinel leaked into the CSS"
+    else pass "[$run] ABSENT tooling scripts/"; fi
+  fi
   while IFS='|' read -r n p label; do
     [ -n "$n" ] || continue
     if in_css "$css" "$n"; then fail "[$run] ABSENT $label: sentinel leaked into the CSS"
@@ -351,6 +361,8 @@ EOF
 populate "$TMP/clean"
 HAS_PUBLIC=0
 [ -d "$TMP/clean/public" ] && HAS_PUBLIC=1
+HAS_SCRIPTS=0
+[ -d "$TMP/clean/scripts" ] && HAS_SCRIPTS=1
 CLEAN_CSS=$(build "$TMP/clean") || exit 2
 unique_ok=1
 for n in $ALL_NUMS; do
@@ -362,6 +374,9 @@ done
 [ "$unique_ok" -eq 1 ] && pass "UNIQUE no sentinel appears in a clean build"
 if [ "$HAS_PUBLIC" -eq 0 ]; then
   note "public/ does not exist in this tree; its PRESENT row is skipped"
+fi
+if [ "$HAS_SCRIPTS" -eq 0 ]; then
+  note "scripts/ does not exist in this tree; its ABSENT row is skipped"
 fi
 
 # 2. Planted build, .gitignore as committed (both layers).
