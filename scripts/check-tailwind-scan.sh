@@ -256,14 +256,16 @@ PRESENT_ROWS="3501|index.html|root index.html
 3502|src/scan-sentinel.tsx|src/
 3503|src/characters/scan-sentinel.ts|nested src/"
 
-ABSENT_ROWS="3511|scan-sentinel.md|markdown .md (root)
-3512|scan-sentinel.MD|markdown .MD (root)
-3513|scan-sentinel.mdx|markdown .mdx (root)
-3514|scan-sentinel.markdown|markdown .markdown (root)
-3515|src/notes/scan-sentinel.md|markdown .md (src/)
-3516|src/notes/scan-sentinel.MD|markdown .MD (src/)
-3517|src/notes/scan-sentinel.mdx|markdown .mdx (src/)
-3518|src/notes/scan-sentinel.markdown|markdown .markdown (src/)
+# Each markdown sentinel has its own basename: macOS file systems are
+# usually case-insensitive, so x.md and x.MD would be ONE file.
+ABSENT_ROWS="3511|scan-sentinel-lower.md|markdown .md (root)
+3512|scan-sentinel-upper.MD|markdown .MD (root)
+3513|scan-sentinel-mdx.mdx|markdown .mdx (root)
+3514|scan-sentinel-markdown.markdown|markdown .markdown (root)
+3515|src/notes/scan-sentinel-lower.md|markdown .md (src/)
+3516|src/notes/scan-sentinel-upper.MD|markdown .MD (src/)
+3517|src/notes/scan-sentinel-mdx.mdx|markdown .mdx (src/)
+3518|src/notes/scan-sentinel-markdown.markdown|markdown .markdown (src/)
 3521|CLAUDE.md|private CLAUDE.md
 3522|.claude/scan-sentinel.html|private .claude/
 3523|design/scan-sentinel.html|private design/
@@ -309,6 +311,17 @@ EOF
     [ -n "$n" ] || continue
     plant "$dest/$p" "$n"
   done <<EOF
+$ABSENT_ROWS
+EOF
+  # Read every plant back. Two paths can name one file (case-insensitive
+  # file systems), and a row whose sentinel was overwritten passes ABSENT
+  # without testing anything.
+  while IFS='|' read -r n p label; do
+    [ -n "$n" ] || continue
+    $GREP -q -F -- "$(sentinel_class "$n")" "$dest/$p" \
+      || die "planted sentinel for '$label' was not found in $p after planting"
+  done <<EOF
+$PRESENT_ROWS
 $ABSENT_ROWS
 EOF
 }
