@@ -27,6 +27,10 @@ Private paths and build output are kept out in two ways:
 
 Neither layer covers a private file under another name.
 
+`scripts/` is excluded from the scan by an `@source not` line too: it holds repo tooling, and plain words in it would add CSS.
+
+To check the scan after changing `src/index.css`, `.gitignore`, `vite.config.ts` or the Tailwind version, run `npm run check:scan`. It plants sentinel classes in a throwaway copy and checks that the root `index.html` and `src/` reach the CSS, and that markdown, the private names and `scripts/` do not. `npm run check:scan -- --audit` checks your own checkout: it fails if an untracked file, or a file reached through a symlink, feeds the CSS. It is a hand-run check, not CI.
+
 If `src/index.css` moves, rewrite every `../` in it. The lines resolve against the file's new directory. From `src/styles/`, `../resources` means `src/resources/`, which can drop real CSS. The repo-root names are then no longer excluded by those lines. See the comment in `src/index.css`.
 
 ## Languages
