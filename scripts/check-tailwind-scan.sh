@@ -568,6 +568,8 @@ check_src_inputs() {
 }
 
 # --- 1. clean build: no plants; every sentinel must be absent (UNIQUE) --------
+# The FILES rows use the version-pinned model; check the pin before building.
+require_model_version
 populate "$TMP/clean"
 PRESENT=$(build_present_rows "$TMP/clean") || bail $?
 ABSENT="$ABSENT_ROWS"
