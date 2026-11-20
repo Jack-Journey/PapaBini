@@ -537,7 +537,7 @@ blind=0
 while IFS='|' read -r n p label; do
   [ -n "$n" ] || continue
   if ! in_css "$CONTROL_CSS" "$n"; then
-    printf 'FAIL  control: %s stays hidden with both layers removed (another rule covers it)\n' "$label" >&2
+    printf 'FAIL  control: %s stays hidden with both layers removed (another rule covers it, or the scan does not reach it)\n' "$label" >&2
     blind=1
   fi
 done <<EOF
