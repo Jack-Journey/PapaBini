@@ -9,9 +9,16 @@
 //   root === "none" -> no root source
 //   root === null   -> { base: <vite root>, pattern: "**/*" }
 //   otherwise       -> the `source(...)` root
-// followed by every `@source` / `@source not` line. Re-check this when
-// @tailwindcss/vite is upgraded; the shell script's positive controls fail
-// the audit if this model stops matching the build.
+// followed by every `@source` / `@source not` line.
+//
+// ASSUMPTIONS. This is a model of the plugin, not the build:
+//   - The Vite root is the repo root (vite.config.ts sets no `root`).
+//     The plugin uses config.root; this file uses <repo-root>.
+//   - The installed @tailwindcss/vite, /node and /oxide are 4.2.2.
+// check-tailwind-scan.sh --audit exits 2 if either assumption fails, so an
+// upgrade forces a re-read of the plugin before the audit is trusted. Its
+// three positive controls catch only gross mismatches; they cannot see
+// this model missing a source a newer plugin adds.
 //
 // Read-only: it reads files and writes nothing.
 

@@ -29,7 +29,13 @@ Neither layer covers a private file under another name.
 
 `scripts/` is excluded from the scan by an `@source not` line too: it holds repo tooling, and plain words in it would add CSS.
 
-To check the scan after changing `src/index.css`, `.gitignore`, `vite.config.ts` or the Tailwind version, run `npm run check:scan`. It plants sentinel classes in a throwaway copy and checks that the root `index.html` and `src/` reach the CSS, and that markdown, the private names and `scripts/` do not. `npm run check:scan -- --audit` checks your own checkout: it fails if an untracked file, or a file reached through a symlink, feeds the CSS. It is a hand-run check, not CI.
+To check the scan after changing `src/index.css`, `.gitignore`, `vite.config.ts` or the Tailwind version, run `npm run check:scan`. It is a hand-run check, not CI.
+
+- **What it checks.** By default it checks your working tree: every tracked file as it is on disk, uncommitted edits included. Use `-- --ref <rev>` to check a commit instead, and use it only on commits you trust, because it runs that commit's build config. The check plants sentinel classes in a throwaway copy. It then checks that the root `index.html` and every directory under `src/` reach the CSS, and that markdown, the private names and `scripts/` do not.
+- **Why both layers are tested on their own.** It runs once with `.gitignore` as committed and once with the private rules removed. A control build with both layers removed must leak every exclusion sentinel. If one stays hidden, the check exits 2, because the layer test is blind.
+- **Known gaps.** The symlink cases are pinned as known gaps. A new gap, or a pinned one that closes, fails the check.
+- **Your own checkout.** `npm run check:scan -- --audit` fails if an untracked file, or a file reached through a symlink, feeds the CSS. It models Tailwind 4.2.2 and exits 2 on any other installed version until the model is re-read.
+- **Side effect.** Each build writes a transient file under `node_modules/.vite-temp/` and deletes it afterwards.
 
 If `src/index.css` moves, rewrite every `../` in it. The lines resolve against the file's new directory. From `src/styles/`, `../resources` means `src/resources/`, which can drop real CSS. The repo-root names are then no longer excluded by those lines. See the comment in `src/index.css`.
 
