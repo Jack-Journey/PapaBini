@@ -234,8 +234,10 @@ build() {
     cat "$log" >&2
     die "vite build failed (rc $rc) in $(basename "$dest")"
   fi
+  # An unmatched glob stays literal in bash, so test that it named a file.
   set -- "$dest"/dist/assets/*.css
-  [ $# -eq 1 ] && [ -f "$1" ] || die "build emitted $# CSS files in $(basename "$dest") (expected exactly 1)"
+  [ -f "$1" ] || die "build emitted no CSS file in $(basename "$dest")"
+  [ $# -eq 1 ] || die "build emitted $# CSS files in $(basename "$dest") (expected exactly 1)"
   [ -s "$1" ] || die "emitted CSS is empty in $(basename "$dest")"
   printf '%s\n' "$1"
 }
