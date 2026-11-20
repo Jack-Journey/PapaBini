@@ -23,9 +23,11 @@ Tailwind scans the whole repo root for class names. Every file there that is not
 Private paths and build output are kept out in two ways:
 
 - Rules in `.gitignore`. These are load-bearing for the CSS as well as for git: `CLAUDE.md`, `.claude/`, `design/`, `team/`, `research/`, `resources/`, `to-be-filed/`, `dist/` and `.vite/`. Without the `dist/` rule, a stale build feeds the next one.
-- `@source not` lines in `src/index.css`. These exclude the private paths and markdown.
+- `@source not` lines in `src/index.css`. These exclude markdown and the private names. The markdown types are `.md`, `.MD`, `.mdx` and `.markdown`; revisit the glob if MDX is ever adopted. The private names are covered only as real files and directories at the repo root. A symlink at one of those names is not covered, and neither are the same names deeper in the tree. The `.gitignore` rules ending in `/` match directories only, so a symlink to a file at one of those names is scanned even with both layers in place.
 
-Neither covers a private file under another name. See the comment in `src/index.css`.
+Neither layer covers a private file under another name.
+
+If `src/index.css` moves, rewrite every `../` in it. The lines resolve against the file's new directory. From `src/styles/`, `../resources` means `src/resources/`, which can drop real CSS. The repo-root names are then no longer excluded by those lines. See the comment in `src/index.css`.
 
 ## Languages
 English · German · Traditional Chinese (繁體中文 with Pinyin)

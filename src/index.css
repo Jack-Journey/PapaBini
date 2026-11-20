@@ -27,14 +27,28 @@
  *      git: CLAUDE.md  .claude/  design/  team/  research/  resources/
  *      to-be-filed/  dist/  .vite/
  *      Without the dist/ rule, a stale build output feeds the next build.
- *   2. The `@source not` lines below exclude the private paths a second
- *      time, so they stay out even if a .gitignore rule is removed.
+ *   2. The `@source not` lines below exclude the same names a second
+ *      time. They cover real files and directories at those names at the
+ *      REPO ROOT only, and they hold there when the matching .gitignore
+ *      rule is removed. They do NOT cover:
+ *        - a symlink at one of those names: the scanner follows it, and
+ *          the exclusion does not apply to what it reaches;
+ *        - the same names deeper in the tree (e.g. src/design/), which
+ *          only the .gitignore rules match.
+ *      The .gitignore rules that end in "/" match directories only. So a
+ *      symlink to a FILE at one of those names (e.g. research) is scanned
+ *      even with both layers in place.
  *
  * Markdown (.md, .MD, .mdx, .markdown) is excluded too. Otherwise the
- * tracked README.md adds CSS.
+ * tracked README.md adds CSS. .mdx is a rendering format, not only docs:
+ * if MDX is ever adopted, its classes are dropped from the CSS until this
+ * glob is revisited.
  *
- * Every `@source not` path is relative to THIS file. If this file moves,
- * update the `../` prefixes, or those exclusions stop applying.
+ * Every `@source not` path is relative to THIS file. Moving this file
+ * means rewriting every `../` in it. Otherwise each line resolves against
+ * the new directory. From src/styles/, "../resources" means
+ * src/resources/, which can DROP real CSS at build rc 0. The private
+ * names at the repo root are then no longer excluded by these lines.
  */
 @import "tailwindcss";
 @source not "../**/*.{md,MD,mdx,markdown}";
