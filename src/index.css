@@ -1,1 +1,61 @@
-@import "tailwindcss" source(".");
+/*
+ * Tailwind entry stylesheet: which files Tailwind scans for class names.
+ *
+ * No `source(...)` on the import, on purpose. With no `source()`,
+ * @tailwindcss/vite scans the whole Vite project root (the repo root),
+ * wherever this file lives. A `source(".")` here would resolve against
+ * THIS file's directory and replace the root scan. That shape (PR #4)
+ * dropped classes used only in the root `index.html` and emptied the scan
+ * when this file moved. Both fail at build rc 0 (Papabini #34).
+ *
+ * WHAT FEEDS THE CSS. Every file under the repo root that is not ignored
+ * is a CSS input, and its class names can ship in the public CSS bundle.
+ * That includes untracked files under any name, and the targets of
+ * symlinks: the scanner follows symlinks, including ones that point outside
+ * the repo.
+ *
+ * WHAT COUNTS AS IGNORED. The scanner honours the repo's .gitignore, and
+ * .git/info/exclude when the checkout is a git repo. It does NOT honour
+ * global git excludes (core.excludesFile, ~/.config/git/ignore). So
+ * `git status` or `git check-ignore` can call a file ignored while
+ * Tailwind still scans it.
+ *
+ * CURRENT MITIGATION for private paths and build output. Not a boundary: a
+ * private file under any other name, or a symlink at an unignored path,
+ * is not covered.
+ *   1. These .gitignore rules are load-bearing for the scan, not only for
+ *      git: CLAUDE.md  .claude/  design/  team/  research/  resources/
+ *      to-be-filed/  dist/  .vite/
+ *      Without the dist/ rule, a stale build output feeds the next build.
+ *   2. The `@source not` lines below exclude the same names a second
+ *      time. They cover real files and directories at those names at the
+ *      REPO ROOT only, and they hold there when the matching .gitignore
+ *      rule is removed. They do NOT cover:
+ *        - a symlink at one of those names: the scanner follows it, and
+ *          the exclusion does not apply to what it reaches;
+ *        - the same names deeper in the tree (e.g. src/design/), which
+ *          only the .gitignore rules match.
+ *      The .gitignore rules that end in "/" match directories only. So a
+ *      symlink to a FILE at one of those names (e.g. research) is scanned
+ *      even with both layers in place.
+ *
+ * Markdown (.md, .MD, .mdx, .markdown) is excluded too. Otherwise the
+ * tracked README.md adds CSS. .mdx is a rendering format, not only docs:
+ * if MDX is ever adopted, its classes are dropped from the CSS until this
+ * glob is revisited.
+ *
+ * Every `@source not` path is relative to THIS file. Moving this file
+ * means rewriting every `../` in it. Otherwise each line resolves against
+ * the new directory. From src/styles/, "../resources" means
+ * src/resources/, which can DROP real CSS at build rc 0. The private
+ * names at the repo root are then no longer excluded by these lines.
+ */
+@import "tailwindcss";
+@source not "../**/*.{md,MD,mdx,markdown}";
+@source not "../CLAUDE.md";
+@source not "../.claude";
+@source not "../design";
+@source not "../team";
+@source not "../research";
+@source not "../resources";
+@source not "../to-be-filed";
