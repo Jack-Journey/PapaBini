@@ -17,9 +17,14 @@
 # (`--worktree` is still accepted and means the default.) Untracked files
 # are not copied; --audit is the check for those.
 #
-# Exit: 0 = every row passed. 1 = at least one row failed. 2 = the check could
-# not run or could not trust its own controls (build failed, no CSS emitted,
-# a control build or strip did not do what it claims). It fails closed.
+# Exit: 0 = every row passed.
+#       1 = at least one coverage row FAILED. A FAIL row that has been scored
+#           always reaches the "N row(s) FAILED" summary and exit 1, even
+#           when a later step (a strip, the control build, a build) then
+#           cannot complete; that step's reason is printed after the summary.
+#       2 = NO coverage row failed, and the check could not run or could not
+#           trust its own controls (build failed, no CSS emitted, a strip or
+#           control build did not do what it claims). It fails closed.
 #
 # THE CRITERION IS COVERAGE, NOT A DIGEST. A byte-identical or digest pin is
 # satisfied by a no-op or a revert, so it proves nothing about the scan.
@@ -37,6 +42,13 @@
 #            tree has it.
 #            Checked twice: with .gitignore as committed, and with the
 #            private .gitignore rules removed ("@source not only").
+#   FILES    every file under src/ of a source type (ts tsx js jsx mjs cjs
+#            css html) is a scanner input, per tailwind-scan-inputs.mjs run
+#            on the copy. Catches exclusions by file name or extension
+#            (e.g. `@source not "../src/**/*.ts"`), which keep every
+#            directory sentinel green. Uses the same version-pinned model as
+#            --audit, so the sentinel run also exits 2 on a Tailwind version
+#            the model was not read from.
 #   CONTROL  The "@source not only" run is trusted only if its strip is
 #            proven. The strip must remove exactly the expected number of
 #            rules (else exit 2). And a control build with BOTH layers
@@ -97,6 +109,10 @@
 #   - Untracked files and local symlinks in your checkout are not copied.
 #     --audit is the check for those.
 #   - --worktree with a tracked file deleted but not staged exits 2.
+#   - FILES covers src/ only, and only the listed types. A file under src/
+#     that a .gitignore rule ignores on purpose would show as a FILES FAIL.
+#   - A path under src/ containing '|' or a newline, or a symlink on any
+#     plant path inside the copy, stops the run (exit 2).
 #   - `tsc -b` is not run. Only `vite build` produces the CSS.
 #
 # bash 3.2 compatible (macOS /bin/bash): no mapfile, no associative arrays.
@@ -113,19 +129,29 @@ PRIVATE_RULE_COUNT=7
 # The Tailwind version the --audit model was read from.
 MODEL_VERSION="4.2.2"
 # GAP rows that leak today (Tailwind 4.2.2), one per line, exact names.
+# PRIVATE_RULES, PRIVATE_RULE_COUNT and EXPECTED_GAPS move TOGETHER: adding,
+# respelling or removing a private .gitignore rule changes which rules the
+# strip removes, how many, and which symlink gaps leak in which run.
 EXPECTED_GAPS="[both layers] team -> outside file
 [@source not only] research -> outside directory
 [@source not only] team -> outside file"
 
 MODE="sentinel"
 REF=""
+NL='
+'
+# File types under src/ that must each be a scanner input (FILES rows).
+SRC_SCANNED_EXT="ts tsx js jsx mjs cjs css html"
 
 usage() {
   cat <<'USAGE'
 check-tailwind-scan.sh                 sentinel check on the working tree
 check-tailwind-scan.sh --ref <rev>     sentinel check on a commit
 check-tailwind-scan.sh --audit         audit this checkout's real scanner inputs
-Exit 0 = pass, 1 = a row failed, 2 = could not run (fail closed).
+Exit 0 = every row passed.
+Exit 1 = at least one coverage row FAILED (always wins once a row has failed;
+         a later step that could not complete is reported after the summary).
+Exit 2 = no row failed, but the check could not run or trust its controls.
 USAGE
 }
 
@@ -150,12 +176,47 @@ REPO=$(cd "$REPO" && pwd -P) || exit 2
 FAILS=0
 GAPS=0
 
-# die: fail closed. Prints to stderr so the message survives a $(...) capture.
-die() {
+TMP=""
+# summary_failed: the closing line for a run with FAIL rows (stderr).
+summary_failed() {
+  echo >&2
+  echo "check-tailwind-scan: $FAILS row(s) FAILED ($GAPS pinned gap(s) reported)." >&2
+}
+
+# stop_run REASON: the single exit path for a step that cannot complete.
+# Precedence: if any coverage row has already FAILED, those rows stand. Print
+# the FAILED summary, then REASON, and exit 1. Only a run with no failed row
+# exits 2 (fail closed).
+stop_run() {
+  if [ "$FAILS" -gt 0 ]; then
+    summary_failed
+    printf 'STOP  %s\n' "$1" >&2
+    echo "check-tailwind-scan: the run stopped at the step above; the FAIL rows already scored stand (exit 1)." >&2
+    exit 1
+  fi
   printf 'FAIL  %s\n' "$1" >&2
-  echo "check-tailwind-scan: could not complete the check (fail closed)." >&2
+  echo "check-tailwind-scan: could not complete the check (fail closed, exit 2)." >&2
   exit 2
 }
+
+# die REASON: stop. Inside a $(...) subshell it records REASON and exits 3;
+# the caller's `|| bail` then decides the exit code in the parent shell,
+# where FAILS is authoritative, so the reason prints after the summary.
+die() {
+  if [ "${BASH_SUBSHELL:-0}" -gt 0 ] && [ -n "${TMP:-}" ] && [ -d "$TMP" ]; then
+    printf '%s\n' "$1" > "$TMP/stop.reason"
+    exit 3
+  fi
+  stop_run "$1"
+}
+
+# bail: handle a failed $(...) step in the parent shell.
+bail() {
+  local rc="$1" reason="a step exited $1 without a reason"
+  if [ -f "$TMP/stop.reason" ]; then reason=$(cat "$TMP/stop.reason"); fi
+  stop_run "$reason"
+}
+
 pass() { printf 'PASS  %s\n' "$1"; }
 fail() { printf 'FAIL  %s\n' "$1"; FAILS=$((FAILS + 1)); }
 gap()  { printf 'GAP   %s\n' "$1"; GAPS=$((GAPS + 1)); }
@@ -174,17 +235,23 @@ pkg_version() {
     "$NM/$1/package.json" 2>/dev/null
 }
 
+# require_model_version: the scanner-input model (tailwind-scan-inputs.mjs)
+# is valid only for the version it was read from. Exit 2 otherwise.
+require_model_version() {
+  local pkg v
+  for pkg in @tailwindcss/vite @tailwindcss/node @tailwindcss/oxide; do
+    v=$(pkg_version "$pkg") || die "cannot read the installed version of $pkg"
+    [ "$v" = "$MODEL_VERSION" ] || die "scanner-input model is for $pkg $MODEL_VERSION, installed $v: re-read @tailwindcss/vite dist/index.mjs (class B generate), update scripts/tailwind-scan-inputs.mjs, then bump MODEL_VERSION"
+  done
+}
+
 # --- audit mode --------------------------------------------------------------
 
 if [ "$MODE" = "audit" ]; then
   [ -z "$REF" ] || die "--audit takes no --ref"
   [ -f "$REPO/$CSS_ENTRY" ] || die "no $CSS_ENTRY in $REPO"
 
-  # The model is only valid for the version it was read from.
-  for pkg in @tailwindcss/vite @tailwindcss/node @tailwindcss/oxide; do
-    v=$(pkg_version "$pkg") || die "cannot read the installed version of $pkg"
-    [ "$v" = "$MODEL_VERSION" ] || die "audit model is for $pkg $MODEL_VERSION, installed $v: re-read @tailwindcss/vite dist/index.mjs (class B generate), update scripts/tailwind-scan-inputs.mjs, then bump MODEL_VERSION"
-  done
+  require_model_version
   # The model assumes the Vite root is the repo root.
   if $GREP -q -E '(^|[^A-Za-z0-9_])root[[:space:]]*:' "$REPO/vite.config.ts"; then
     die "vite.config.ts appears to set root; the audit model assumes the Vite root is the repo root"
@@ -252,6 +319,10 @@ fi
 # --- sentinel mode -----------------------------------------------------------
 
 TMP=$(mktemp -d "${TMPDIR:-/tmp}/tw-scan-check.XXXXXX") || die "mktemp failed"
+# Physical path: the scanner reports canonical paths (/var -> /private/var on
+# macOS), and the FILES rows compare against them.
+TMP_RAW="$TMP"
+TMP=$(cd "$TMP" && pwd -P) || { rm -rf "$TMP_RAW"; die "cannot resolve the temp dir"; }
 case "$TMP" in
   "$REPO"|"$REPO"/*) rm -rf "$TMP"; die "temp dir is inside the repo: $TMP" ;;
 esac
@@ -307,6 +378,25 @@ build() {
   printf '%s\n' "$1"
 }
 
+# no_symlink_on_path DEST REL: exit 2 if any component of DEST/REL (each
+# directory on the way, and the file itself) is a symlink. A tracked symlink
+# at e.g. design/ would otherwise carry a sentinel OUTSIDE the copy, where
+# the trap does not clean it up.
+no_symlink_on_path() {
+  local dest="$1" rel="$2" cur="$1" part
+  local IFS=/
+  set -f
+  for part in $rel; do
+    [ -n "$part" ] || continue
+    cur="$cur/$part"
+    if [ -L "$cur" ]; then
+      set +f
+      die "plant path $rel crosses a symlink in the copy ($cur); refusing to write through it"
+    fi
+  done
+  set +f
+}
+
 # plant PATH N: write a file at PATH whose only content uses sentinel N.
 plant() {
   mkdir -p "$(dirname "$1")" || die "mkdir for $1 failed"
@@ -356,6 +446,10 @@ build_present_rows() {
   (cd "$dest" && find src -type d | LC_ALL=C sort) > "$TMP/src-dirs.txt" \
     || die "listing src/ directories failed"
   [ -s "$TMP/src-dirs.txt" ] || die "no src/ directory in the copy"
+  # Rows are |- and newline-delimited: such a name would mangle its row.
+  if [ -n "$(cd "$dest" && find src -name '*|*' -print -o -name "*$NL*" -print)" ]; then
+    die "a path under src/ contains '|' or a newline; the row format cannot carry it"
+  fi
   while IFS= read -r d; do
     [ -n "$d" ] || continue
     printf '%s\n' "$n|$d/scan-sentinel-dir.tsx|$d/"
@@ -370,12 +464,14 @@ plant_rows() {
   while IFS='|' read -r n p label; do
     [ -n "$n" ] || continue
     if [ "$p" = "index.html" ]; then
+      no_symlink_on_path "$dest" "$p"
       # Insert the sentinel before </body>, then prove the insert happened.
       awk -v cls="$(sentinel_class "$n")" \
         '/<\/body>/ && !done { print "    <div class=\"" cls "\"></div>"; done=1 } { print }' \
         "$dest/index.html" > "$dest/index.html.new" || die "editing index.html failed"
       mv "$dest/index.html.new" "$dest/index.html" || die "editing index.html failed"
     else
+      no_symlink_on_path "$dest" "$p"
       plant "$dest/$p" "$n"
     fi
   done <<EOF
@@ -408,7 +504,7 @@ strip_private_rules() {
   after=$(wc -l < "$dest/.gitignore" | tr -d ' ')
   removed=$((before - after))
   [ "$removed" -eq "$PRIVATE_RULE_COUNT" ] \
-    || die "second-layer strip removed $removed of $PRIVATE_RULE_COUNT private .gitignore rules (a rule was respelled, moved or deleted); the layer test would be blind"
+    || die "second-layer strip removed $removed of $PRIVATE_RULE_COUNT private .gitignore rules (a rule was respelled, moved or deleted); the layer test would be blind. If the change is intended, update (PRIVATE_RULES, PRIVATE_RULE_COUNT and EXPECTED_GAPS in this script move together)"
 }
 
 # strip_source_not DEST: delete every `@source not` line from the copy's
@@ -442,9 +538,38 @@ $4
 EOF
 }
 
+# check_src_inputs DEST: FILES rows. Every file under DEST/src/ whose type is
+# in SRC_SCANNED_EXT must be one of the scanner's inputs, as reported by
+# tailwind-scan-inputs.mjs run against the copy. This catches exclusions
+# that keep every directory but drop files by name or extension (e.g.
+# `@source not "../src/**/*.ts"`), which no directory sentinel can see.
+check_src_inputs() {
+  local dest="$1" f ext missing=0 total=0 rc
+  require_model_version
+  (cd "$dest" && node "$SCRIPT_DIR/tailwind-scan-inputs.mjs" "$dest" "$CSS_ENTRY") \
+    > "$TMP/copy-inputs.tsv" 2> "$TMP/copy-inputs.err"
+  rc=$?
+  [ "$rc" -eq 0 ] || { cat "$TMP/copy-inputs.err" >&2; die "scanner helper exited $rc on the copy"; }
+  cut -f1 "$TMP/copy-inputs.tsv" > "$TMP/copy-inputs.txt" || die "reading scanner inputs failed"
+  (cd "$dest" && find src -type f | LC_ALL=C sort) > "$TMP/src-files.txt" || die "listing src/ files failed"
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    ext="${f##*.}"
+    case " $SRC_SCANNED_EXT " in *" $ext "*) ;; *) continue ;; esac
+    total=$((total + 1))
+    if ! $GREP -q -F -x -- "$dest/$f" "$TMP/copy-inputs.txt"; then
+      fail "FILES $f is not a scanner input (an exclusion drops it from the CSS)"
+      missing=$((missing + 1))
+    fi
+  done < "$TMP/src-files.txt"
+  [ "$total" -gt 0 ] || die "FILES: no source files of a scanned type under src/"
+  [ "$missing" -eq 0 ] && pass "FILES all $total tracked src/ source files ($SRC_SCANNED_EXT) are scanner inputs"
+  return 0
+}
+
 # --- 1. clean build: no plants; every sentinel must be absent (UNIQUE) --------
 populate "$TMP/clean"
-PRESENT=$(build_present_rows "$TMP/clean") || exit 2
+PRESENT=$(build_present_rows "$TMP/clean") || bail $?
 ABSENT="$ABSENT_ROWS"
 if [ -d "$TMP/clean/scripts" ]; then
   ABSENT="$ABSENT
@@ -456,7 +581,7 @@ fi
 SRC_DIRS=$(wc -l < "$TMP/src-dirs.txt" | tr -d ' ')
 note "PRESENT rows: root index.html + $SRC_DIRS src/ directories"
 
-CLEAN_CSS=$(build "$TMP/clean") || exit 2
+CLEAN_CSS=$(build "$TMP/clean") || bail $?
 ALL_ROWS="$PRESENT
 $ABSENT"
 unique_ok=1
@@ -477,10 +602,13 @@ for n in $GAP_DIR_N $GAP_FILE_N; do
 done
 [ "$unique_ok" -eq 1 ] && pass "UNIQUE no sentinel appears in a clean build"
 
+# FILES rows, on the clean copy (committed config, nothing planted).
+check_src_inputs "$TMP/clean"
+
 # --- 2. planted build, .gitignore as committed (both layers) ----------------
 populate "$TMP/both"
 plant_rows "$TMP/both" "$ALL_ROWS"
-BOTH_CSS=$(build "$TMP/both") || exit 2
+BOTH_CSS=$(build "$TMP/both") || bail $?
 check_rows "$BOTH_CSS" "both layers" "$PRESENT" "$ABSENT"
 
 # --- 3. anti-vacuity: the src/ sentinel moved the output --------------------
@@ -501,12 +629,14 @@ plant "$TMP/outside/file.html" "$GAP_FILE_N"
 # gap_row CSS NAME N: report one gap row against the pin.
 gap_row() {
   local css="$1" name="$2" n="$3" expected=0
-  if printf '%s\n' "$EXPECTED_GAPS" | $GREP -q -F -x -- "$name"; then expected=1; fi
+  # Here-string, not a pipe: under pipefail an early-exiting grep -q can make
+  # the producer's SIGPIPE turn a match into a miss.
+  if $GREP -q -F -x -- "$name" <<<"$EXPECTED_GAPS"; then expected=1; fi
   if in_css "$css" "$n"; then
     if [ "$expected" -eq 1 ]; then gap "$name LEAKS into the CSS (known, pinned)"
-    else fail "GAP pin: $name LEAKS but is not an expected gap (new leak: the boundary moved)"; fi
+    else fail "GAP pin: $name LEAKS but is not an expected gap (new leak: the boundary moved; if intended, update (PRIVATE_RULES, PRIVATE_RULE_COUNT and EXPECTED_GAPS in this script move together))"; fi
   else
-    if [ "$expected" -eq 1 ]; then fail "GAP pin: $name no longer leaks but is pinned as a gap (re-read the scanner, then update EXPECTED_GAPS)"
+    if [ "$expected" -eq 1 ]; then fail "GAP pin: $name no longer leaks but is pinned as a gap (re-read the scanner, then update (PRIVATE_RULES, PRIVATE_RULE_COUNT and EXPECTED_GAPS in this script move together))"
     else note "$name: no leak (as pinned)"; fi
   fi
 }
@@ -519,7 +649,7 @@ gap_run() {
   [ "$3" -eq 1 ] && strip_private_rules "$dest"
   ln -s "$TMP/outside/dir" "$dest/research" || die "symlink failed"
   ln -s "$TMP/outside/file.html" "$dest/team" || die "symlink failed"
-  css=$(build "$dest") || exit 2
+  css=$(build "$dest") || bail $?
   gap_row "$css" "[$run] research -> outside directory" "$GAP_DIR_N"
   gap_row "$css" "[$run] team -> outside file" "$GAP_FILE_N"
 }
@@ -532,7 +662,7 @@ populate "$TMP/control"
 strip_private_rules "$TMP/control"
 strip_source_not "$TMP/control"
 plant_rows "$TMP/control" "$ALL_ROWS"
-CONTROL_CSS=$(build "$TMP/control") || exit 2
+CONTROL_CSS=$(build "$TMP/control") || bail $?
 blind=0
 while IFS='|' read -r n p label; do
   [ -n "$n" ] || continue
@@ -543,21 +673,21 @@ while IFS='|' read -r n p label; do
 done <<EOF
 $ABSENT
 EOF
-[ "$blind" -eq 0 ] || die "control build: the layer test is blind for the row(s) above"
+[ "$blind" -eq 0 ] || die "control build: the layer test is blind for the row(s) above. If a new ignore rule is intended, add it to (PRIVATE_RULES, PRIVATE_RULE_COUNT and EXPECTED_GAPS in this script move together)"
 pass "CONTROL every exclusion plant leaks with both layers removed (the layer test can see)"
 
 # --- 6. planted build with the private .gitignore rules removed -------------
 populate "$TMP/layer2"
 strip_private_rules "$TMP/layer2"
 plant_rows "$TMP/layer2" "$ALL_ROWS"
-L2_CSS=$(build "$TMP/layer2") || exit 2
+L2_CSS=$(build "$TMP/layer2") || bail $?
 check_rows "$L2_CSS" "@source not only" "$PRESENT" "$ABSENT"
 
 gap_run gap-layer2 "@source not only" 1
 
 echo
 if [ "$FAILS" -gt 0 ]; then
-  echo "check-tailwind-scan: $FAILS row(s) FAILED ($GAPS pinned gap(s) reported)." >&2
+  summary_failed
   exit 1
 fi
 echo "check-tailwind-scan: all rows passed. $GAPS pinned gap(s) reported, not counted as passes."
