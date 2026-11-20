@@ -44,6 +44,12 @@
  * if MDX is ever adopted, its classes are dropped from the CSS until this
  * glob is revisited.
  *
+ * scripts/ is excluded too. It holds repo tooling, not UI, and plain
+ * words in it would otherwise add CSS. The scan check lives there:
+ * scripts/check-tailwind-scan.sh (Papabini #35) plants
+ * sentinel classes in a throwaway copy and asserts what the CSS covers.
+ * Run it after changing this file: npm run check:scan
+ *
  * Every `@source not` path is relative to THIS file. Moving this file
  * means rewriting every `../` in it. Otherwise each line resolves against
  * the new directory. From src/styles/, "../resources" means
@@ -59,3 +65,4 @@
 @source not "../research";
 @source not "../resources";
 @source not "../to-be-filed";
+@source not "../scripts";
