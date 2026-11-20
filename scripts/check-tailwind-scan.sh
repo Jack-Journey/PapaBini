@@ -75,6 +75,11 @@
 # read-only: each `vite build` bundles the copy's vite.config.ts into
 # node_modules/.vite-temp/ (through the symlink, so in the REAL install) and
 # deletes it afterwards. A run killed at that moment can leave a stray .mjs.
+# That is the only write outside $TMP. A copy that contains ANY symlink is
+# refused (exit 2) before node_modules is linked or anything is built: a
+# tracked symlink at e.g. dist/ would let `vite build --emptyOutDir` empty
+# and fill its target outside the copy, and one at node_modules/ would take
+# the node_modules link. The trap removes $TMP on every exit path.
 #
 # TRUST. --ref runs THAT commit's vite.config.ts and plugins with your user
 # rights, and they can write into the shared node_modules. Use --ref only on
@@ -326,7 +331,10 @@ TMP=$(cd "$TMP" && pwd -P) || { rm -rf "$TMP_RAW"; die "cannot resolve the temp 
 case "$TMP" in
   "$REPO"|"$REPO"/*) rm -rf "$TMP"; die "temp dir is inside the repo: $TMP" ;;
 esac
-# Side effect: everything below is written under $TMP, removed on exit.
+# Side effect: everything below is written under $TMP, removed on exit. The
+# only exception is vite's transient node_modules/.vite-temp file (header);
+# populate refuses any copy that contains a symlink, so no write can follow
+# a tracked link out of $TMP.
 trap 'rm -rf "$TMP"' EXIT
 trap 'exit 130' INT TERM
 
@@ -344,6 +352,19 @@ sentinel_class() { printf '%s-[%spx]' w "$1"; }
 # The same class as it appears in emitted CSS: .w-\[3501px\]
 sentinel_selector() { printf '.%s-\\[%spx\\]' w "$1"; }
 
+# find_links DIR OUT: list every symlink under DIR into OUT. Fails closed if
+# find fails; a failing find would otherwise read as "no symlinks".
+find_links() {
+  find "$1" -type l > "$2" 2> "$2.err" || { cat "$2.err" >&2; die "find failed while listing symlinks under $1"; }
+}
+
+# Positive control, once per run: find_links must see a symlink we made.
+mkdir -p "$TMP/find-probe" || die "mkdir find-probe failed"
+ln -s . "$TMP/find-probe/link" || die "making the find probe link failed"
+find_links "$TMP/find-probe" "$TMP/find-probe.txt"
+[ "$(wc -l < "$TMP/find-probe.txt" | tr -d ' ')" = "1" ] \
+  || die "find positive control: expected 1 symlink in the probe dir, got $(wc -l < "$TMP/find-probe.txt" | tr -d ' ')"
+
 # populate DEST: fill DEST with the source files, link node_modules, git init.
 populate() {
   local dest="$1"
@@ -357,6 +378,12 @@ populate() {
   fi
   [ -f "$dest/$CSS_ENTRY" ] || die "no $CSS_ENTRY in the copy (stylesheet moved? this check assumes $CSS_ENTRY)"
   [ -f "$dest/index.html" ] || die "no root index.html in the copy"
+  # Refuse any symlink in the copy, BEFORE linking node_modules or building.
+  find_links "$dest" "$TMP/copy-links.txt"
+  if [ -s "$TMP/copy-links.txt" ]; then
+    sed "s|^$dest/|  |" "$TMP/copy-links.txt" >&2
+    die "the copy contains a tracked symlink (listed above); a build or the node_modules link could write through it outside the copy"
+  fi
   ln -s "$NM" "$dest/node_modules" || die "linking node_modules failed"
   git -c init.defaultBranch=main init -q "$dest" || die "git init in the copy failed"
 }
@@ -447,7 +474,9 @@ build_present_rows() {
     || die "listing src/ directories failed"
   [ -s "$TMP/src-dirs.txt" ] || die "no src/ directory in the copy"
   # Rows are |- and newline-delimited: such a name would mangle its row.
-  if [ -n "$(cd "$dest" && find src -name '*|*' -print -o -name "*$NL*" -print)" ]; then
+  (cd "$dest" && find src -name '*|*' -print -o -name "*$NL*" -print) > "$TMP/bad-names.txt" \
+    || die "find failed while checking src/ path names"
+  if [ -s "$TMP/bad-names.txt" ]; then
     die "a path under src/ contains '|' or a newline; the row format cannot carry it"
   fi
   while IFS= read -r d; do
@@ -504,7 +533,7 @@ strip_private_rules() {
   after=$(wc -l < "$dest/.gitignore" | tr -d ' ')
   removed=$((before - after))
   [ "$removed" -eq "$PRIVATE_RULE_COUNT" ] \
-    || die "second-layer strip removed $removed of $PRIVATE_RULE_COUNT private .gitignore rules (a rule was respelled, moved or deleted); the layer test would be blind. If the change is intended, update (PRIVATE_RULES, PRIVATE_RULE_COUNT and EXPECTED_GAPS in this script move together)"
+    || die "second-layer strip removed $removed of $PRIVATE_RULE_COUNT private .gitignore rules (a rule was respelled, moved or deleted); the layer test would be blind. If the change is intended, update PRIVATE_RULES, PRIVATE_RULE_COUNT and EXPECTED_GAPS together in this script"
 }
 
 # strip_source_not DEST: delete every `@source not` line from the copy's
@@ -636,9 +665,9 @@ gap_row() {
   if $GREP -q -F -x -- "$name" <<<"$EXPECTED_GAPS"; then expected=1; fi
   if in_css "$css" "$n"; then
     if [ "$expected" -eq 1 ]; then gap "$name LEAKS into the CSS (known, pinned)"
-    else fail "GAP pin: $name LEAKS but is not an expected gap (new leak: the boundary moved; if intended, update (PRIVATE_RULES, PRIVATE_RULE_COUNT and EXPECTED_GAPS in this script move together))"; fi
+    else fail "GAP pin: $name LEAKS but is not an expected gap (new leak: the boundary moved; if intended, update PRIVATE_RULES, PRIVATE_RULE_COUNT and EXPECTED_GAPS together in this script)"; fi
   else
-    if [ "$expected" -eq 1 ]; then fail "GAP pin: $name no longer leaks but is pinned as a gap (re-read the scanner, then update (PRIVATE_RULES, PRIVATE_RULE_COUNT and EXPECTED_GAPS in this script move together))"
+    if [ "$expected" -eq 1 ]; then fail "GAP pin: $name no longer leaks but is pinned as a gap (re-read the scanner, then update PRIVATE_RULES, PRIVATE_RULE_COUNT and EXPECTED_GAPS together in this script)"
     else note "$name: no leak (as pinned)"; fi
   fi
 }
@@ -669,13 +698,13 @@ blind=0
 while IFS='|' read -r n p label; do
   [ -n "$n" ] || continue
   if ! in_css "$CONTROL_CSS" "$n"; then
-    printf 'FAIL  control: %s stays hidden with both layers removed (another rule covers it, or the scan does not reach it)\n' "$label" >&2
+    printf 'CONTROL %s stays hidden with both layers removed (another rule covers it, or the scan does not reach it)\n' "$label" >&2
     blind=1
   fi
 done <<EOF
 $ABSENT
 EOF
-[ "$blind" -eq 0 ] || die "control build: the layer test is blind for the row(s) above. If a new ignore rule is intended, add it to (PRIVATE_RULES, PRIVATE_RULE_COUNT and EXPECTED_GAPS in this script move together)"
+[ "$blind" -eq 0 ] || die "control build: the layer test is blind for the row(s) above. If a new ignore rule is intended, add it to PRIVATE_RULES and update PRIVATE_RULE_COUNT and EXPECTED_GAPS together in this script"
 pass "CONTROL every exclusion plant leaks with both layers removed (the layer test can see)"
 
 # --- 6. planted build with the private .gitignore rules removed -------------
